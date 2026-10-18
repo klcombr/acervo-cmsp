@@ -300,6 +300,17 @@ async function zipDoBimestre(btn) {
       return;
     }
     aviso.textContent = `${arquivos.length} PDFs encontrados em ${componentes.length} componentes. Gerando o zip…`;
+    if (arquivos.length > 120) {
+      // medido: o plano Free do Render corta respostas longas no meio (o zip do
+      // bimestre inteiro, ~407 MB, chegou truncado em 191 MB e em 302 MB em duas
+      // tentativas). Acima de ~120 arquivos a chance de zip corrompido é real.
+      aviso.innerHTML = `${arquivos.length} PDFs encontrados. Este conjunto é grande e o `
+        + `servidor gratuito pode cortar o download no meio, gerando um zip corrompido. `
+        + `<b>Para o bimestre inteiro, use o script em Python</b> `
+        + `(<a href="https://github.com/klcombr/acervo-cmsp/blob/main/SCRIPT.md" target="_blank" rel="noopener">instruções</a>), `
+        + `que baixa em pastas e retoma se falhar. Para-download em lote apenas se quiser arriscar.`;
+      if (!confirm(aviso.innerHTML + "\n\nContinuar mesmo assim?")) { aviso.remove(); return; }
+    }
     baixarZip(arquivos, `Acervo ${params.Serie}-serie ${params.Bimestre}bimestre ${params.Ano}`);
     aviso.textContent = `${arquivos.length} PDFs enviados. O download começa em instantes.`;
   } finally {

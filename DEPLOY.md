@@ -108,3 +108,26 @@ o arquivo sob demanda conforme ele é enviado: memória constante, sem temp.
 E no navegador, o download é um `form POST` cross-origin, não um blob em JS —
 `Blob` de 400 MB trava a aba. Assim o browser escreve direto no disco com a
 barra de progresso nativa.
+## Limitação medida: o plano Free corta respostas longas
+
+O ZIP do bimestre inteiro **não baixa íntegro** no Render gratuito. Medido:
+
+| Caminho | Esperado | Chegou |
+|---|---|---|
+| Browser (form POST) | 407.616.699 B | 316.981.662 B — sem diretório central |
+| curl direto | 407.616.699 B | 200.888.320 B — sem diretório central |
+
+Cortou em pontos diferentes, então não é o cliente: é o proxy do plano Free
+matando a resposta longa. O ZIP em si está correto — os mesmos bytes saem
+íntegros do backend rodando em outra máquina.
+
+O que funciona no Free:
+
+- **ZIP de uma disciplina** — medido com 6 PDFs (14 MB) e 7 PDFs (25 MB),
+  íntegros. É o uso normal.
+- **Busca e download individual** — sem problema.
+
+O que não funciona: o ZIP de tudo de uma vez. Para isso, o
+[script em Python](SCRIPT.md), que gera pastas e retoma.
+
+Se subir o plano pago do Render, vale retestar — mas isso eu não medi.
