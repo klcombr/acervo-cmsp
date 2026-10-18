@@ -13,31 +13,33 @@ na aba do professor; o backend só empacota as URLs que ela mandou, e baixa cada
 PDF do CDN público do CMSP (que não exige login). Nenhuma credencial passa
 por aqui — nem para armazenamento, nem para log.
 
+Conferido no deploy real: `POST /api/zip` com `169.254.169.254` devolve 400, e
+um zip de teste saiu íntegro com a pasta `MATEMATICA/` preservada.
+
 A URL vem do cliente, então o endpoint valida que só aceita o domínio
 `acervocmsp.educacao.sp.gov.br`. Sem isso, o serviço seria um proxy para o
 servidor fazer requisição em nome de quem chamasse (SSRF).
 
-## Deploy no Render
+## Deploy no Render — já feito
+
+O backend está no ar em:
+
+**https://acervo-cmsp-zip.onrender.com**
+
+E já está ligado no site (`ZIP_BACKEND` em [`app.js`](app.js)). Esta seção
+explica como foi feito, caso você queira refazer.
 
 1. Crie conta em <https://render.com> (GitHub login).
 2. **New → Blueprint**, aponte para `https://github.com/klcombr/acervo-cmsp`.
    O Render lê o [`render.yaml`](render.yaml) e monta tudo sozinho.
 3. Confirme o plano **Free**. O deploy leva 2–3 minutos.
-4. Ao terminar, o Render mostra uma URL tipo
-   `https://acervo-cmsp-zip.onrender.com`.
 
 **Não precisa configurar nada à mão** — build command, start command e health
 check já estão no `render.yaml`.
 
-## Ligar no site
+### Ligar no site (ou trocar a URL)
 
 Abra [`app.js`](app.js) e troque a constante:
-
-```js
-const ZIP_BACKEND = "";   // ← cole aqui a URL do Render
-```
-
-para:
 
 ```js
 const ZIP_BACKEND = "https://acervo-cmsp-zip.onrender.com";
@@ -91,6 +93,7 @@ curl -X POST http://localhost:8000/api/zip -H 'Content-Type: application/json' \
 
 - **Dorme.** Sem tráfego por ~15 minutos o serviço hiberna; o primeiro request
   seguinte demora até ~50 segundos. Por isso a primeira vez pode parecer travada.
+  É o comportamento do plano gratuito, não do código.
 - Zips muito grandes podem esbarrar no limite de tempo do plano. O timeout do
   gunicorn está em 900s e o stream tem teto de 25 minutos, então o bimestre
   inteiro (≈100s) cabe com folga.

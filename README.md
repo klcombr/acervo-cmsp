@@ -32,10 +32,11 @@ O token de sessão vive no `sessionStorage` da aba e morre com ela.
 
 ### ZIP
 
-O botão **Baixar tudo em .zip** e **Baixar o bimestre inteiro em .zip** dependem
-do backend. Ele só empacota as URLs que o navegador já descobriu e baixa cada
-PDF do CDN público do CMSP — **não recebe RA, senha nem token**. Se o site
-estiver sem `ZIP_BACKEND` configurado, os botões avisam em vez de quebrar.
+O botão **Baixar tudo em .zip** e **Baixar o bimestre inteiro em .zip** usam um
+backend mínimo ([`backend/app.py`](backend/app.py), Flask) que só empacota as
+URLs que o navegador já descobriu e baixa cada PDF do CDN público do CMSP — ele
+**não recebe RA, senha nem token**. Está no ar em
+`acervo-cmsp-zip.onrender.com`.
 
 Instruções de deploy: **[DEPLOY.md](DEPLOY.md)**.
 
@@ -87,9 +88,8 @@ SCRIPT.md       script de linha de comando para baixar tudo em pastas
 
 ## Limitações conhecidas
 
-- **Sem ZIP sem backend.** O servidor de arquivos do CMSP não envia CORS, então o
-  navegador não consegue ler os bytes para montar o `.zip` sozinho. Com o backend
-  no Render ([DEPLOY.md](DEPLOY.md)) isso é resolvido, com pasta por disciplina.
+- **Sem ZIP no browser puro.** O servidor de arquivos do CMSP não envia CORS, então
+  só com o backend é possível montar o `.zip` — com pasta por disciplina.
 - **Sem "abrir todos".** O Chrome só permite um popup por clique do usuário, então
   abrir 250 abas é bloqueado de propósito. O ZIP cobre esse caso melhor.
 - O acervo às vezes traz material de série errada (o `Script da tarde` cadastrado
