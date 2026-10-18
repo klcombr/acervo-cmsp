@@ -272,7 +272,8 @@ async function zipDoBimestre(btn) {
     Serie: $("#fSerie").value, Bimestre: $("#fBimestre").value,
   };
   
-  const arquivos = [];
+  // agrupa por disciplina: um zip por matéria em vez de um de 400 MB
+  const porMateria = new Map();
   const rotulo = btn.textContent;
   btn.disabled = true;
 
@@ -283,6 +284,7 @@ async function zipDoBimestre(btn) {
       aviso.textContent = `Procurando PDFs em ${nome} (${i + 1} de ${componentes.length})…`;
       try {
         const d = await getDados("materiaisdigitais", { ...params, key: token, Componente: codigo });
+        const arquivos = [];
         for (const aula of d?.materiais || []) {
           for (const arq of aula.arquivos || []) {
             if (!arq.ativo || !ehPdf(arq)) continue;
@@ -292,31 +294,33 @@ async function zipDoBimestre(btn) {
             });
           }
         }
+        if (arquivos.length) porMateria.set(nome, arquivos);
       } catch { /* disciplina sem material ou erro isolado: segue para a próxima */ }
       await new Promise((r) => setTimeout(r, 120));   // educado com a API
     }
-    if (!arquivos.length) {
+
+    if (!porMateria.size) {
       aviso.textContent = "Nenhum PDF encontrado nesse filtro.";
       return;
     }
-    aviso.textContent = `${arquivos.length} PDFs encontrados em ${componentes.length} componentes. Gerando o zip…`;
-    if (arquivos.length > 120) {
-      // medido: o plano Free do Render corta respostas longas no meio (o zip do
-      // bimestre inteiro, ~407 MB, chegou truncado em 191 MB e em 302 MB em duas
-      // tentativas). Acima de ~120 arquivos a chance de zip corrompido é real.
-      aviso.innerHTML = `${arquivos.length} PDFs encontrados. Este conjunto é grande e o `
-        + `servidor gratuito pode cortar o download no meio, gerando um zip corrompido. `
-        + `<b>Para o bimestre inteiro, use o script em Python</b> `
-        + `(<a href="https://github.com/klcombr/acervo-cmsp/blob/main/SCRIPT.md" target="_blank" rel="noopener">instruções</a>), `
-        + `que baixa em pastas e retoma se falhar. Para-download em lote apenas se quiser arriscar.`;
-      if (!confirm(aviso.innerHTML + "\n\nContinuar mesmo assim?")) { aviso.remove(); return; }
+
+    // Um zip por disciplina, e nao um unico de 400 MB. Medido: o plano Free do
+    // Render entrega ~325 KB/s, entao o arquivo gigante levava ~20 min e ainda
+    // era cortado no meio pelo timeout, chegando sem o diretorio central.
+    // Vinte downloads de ~20 MB sao rapidos e nao correm esse risco.
+    aviso.textContent = `${porMateria.size} disciplinas com material. Baixando um zip de cada…`;
+    let n = 0;
+    for (const [nome, arquivos] of porMateria) {
+      btn.textContent = `Baixando ${++n}/${porMateria.size}…`;
+      aviso.textContent = `zip ${n} de ${porMateria.size}: ${nome} (${arquivos.length} PDFs)`;
+      baixarZip(arquivos, `${nome} - ${params.Serie}serie ${params.Bimestre}bimestre`);
+      await new Promise((r) => setTimeout(r, 2500));   // deixa a fila do browser respirar
     }
-    baixarZip(arquivos, `Acervo ${params.Serie}-serie ${params.Bimestre}bimestre ${params.Ano}`);
-    aviso.textContent = `${arquivos.length} PDFs enviados. O download começa em instantes.`;
+    const total = [...porMateria.values()].reduce((s, a) => s + a.length, 0);
+    aviso.textContent = `${porMateria.size} zips enviados (${total} PDFs). Confira a pasta de downloads.`;
   } finally {
     btn.textContent = rotulo;
     btn.disabled = false;
-    setTimeout(() => aviso.remove(), 12000);
   }
 }
 

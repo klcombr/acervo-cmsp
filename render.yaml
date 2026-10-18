@@ -5,7 +5,10 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --workers 1 --threads 8 --timeout 900 --bind 0.0.0.0:$PORT app:app
+    # 1800s: o zip do bimestre inteiro leva ~20 min porque o Render serve os
+    # PDFs em serie a ~325 KB/s (medido: 293 MB em 900s). Com 900 o gunicorn
+    # matava o worker no meio da stream e o zip chegava truncado.
+    startCommand: gunicorn --workers 1 --threads 8 --timeout 1800 --graceful-timeout 60 --bind 0.0.0.0:$PORT app:app
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION

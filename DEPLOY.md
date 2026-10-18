@@ -108,26 +108,30 @@ o arquivo sob demanda conforme ele é enviado: memória constante, sem temp.
 E no navegador, o download é um `form POST` cross-origin, não um blob em JS —
 `Blob` de 400 MB trava a aba. Assim o browser escreve direto no disco com a
 barra de progresso nativa.
-## Limitação medida: o plano Free corta respostas longas
+## O ZIP do bimestre inteiro: causa raiz e o que mudou
 
-O ZIP do bimestre inteiro **não baixa íntegro** no Render gratuito. Medido:
+O ZIP único de 407 MB **não chega íntegro**. Medi três vezes até achar a causa:
 
-| Caminho | Esperado | Chegou |
-|---|---|---|
-| Browser (form POST) | 407.616.699 B | 316.981.662 B — sem diretório central |
-| curl direto | 407.616.699 B | 200.888.320 B — sem diretório central |
+| Caminho | Esperado | Chegou | Tempo |
+|---|---|---|---|
+| Browser (form POST) | 407.616.699 B | 316.981.662 B | — |
+| curl, 1ª tentativa | 407.616.699 B | 200.888.320 B | — |
+| curl, 2ª tentativa | 407.616.699 B | 293.128.134 B | **900,79 s** |
 
-Cortou em pontos diferentes, então não é o cliente: é o proxy do plano Free
-matando a resposta longa. O ZIP em si está correto — os mesmos bytes saem
-íntegros do backend rodando em outra máquina.
+O número que explica tudo é o tempo: **900,79 s**, praticamente o `--timeout 900`
+do gunicorn. A primeira hipótese era o proxy do plano Free, e estava errada — foi
+o **gunicorn matando o worker no meio da stream**.
 
-O que funciona no Free:
+Por que 900 s não bastam: o Render entrega os PDFs em série a ~325 KB/s
+(293 MB ÷ 900 s). Os 407 MB exigiriam ~21 min.
 
-- **ZIP de uma disciplina** — medido com 6 PDFs (14 MB) e 7 PDFs (25 MB),
-  íntegros. É o uso normal.
-- **Busca e download individual** — sem problema.
+Duas correções:
 
-O que não funciona: o ZIP de tudo de uma vez. Para isso, o
-[script em Python](SCRIPT.md), que gera pastas e retoma.
+1. `--timeout 1800` no `render.yaml`, para o teto artificial não matar a stream.
+2. **Um ZIP por disciplina em vez de um de tudo.** Dezoito downloads de ~20 MB
+   são rápidos e não dependem de uma resposta de 20 minutos. O site faz isso
+   sozinho agora.
 
-Se subir o plano pago do Render, vale retestar — mas isso eu não medi.
+Se o script Python continuar sendo o caminho para "baixar tudo de uma vez": ele
+faz 407 MB direto da sua máquina, em ~100 s, com pastas e retomada — e não depende
+de serviço gratuito nenhum.
