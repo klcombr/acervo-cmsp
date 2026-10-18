@@ -9,7 +9,7 @@ const ETAPA_EM = 3;                                 // 3 = ENSINO MÉDIO
 
 // Servidor que monta o .zip. Vazio = botao desabilitado com explicacao.
 // Preencha com a URL do seu deploy no Render (ver LEIA-ME.md, secao "Backend").
-const ZIP_BACKEND = "";   // ← cole aqui a URL do Render, ex.: "https://acervo-cmsp-zip.onrender.com"
+const ZIP_BACKEND = "https://acervo-cmsp-zip.onrender.com";
 
 const $ = (s) => document.querySelector(s);
 const el = (t, cls, txt) => { const n = document.createElement(t); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
