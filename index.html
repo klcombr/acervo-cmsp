@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acervo CMSP — baixar materiais do 4º bimestre</title>
+<meta name="description" content="Localize e baixe os materiais do Centro de Mídias SP por ano, série, bimestre e componente curricular. Login com o seu próprio RA, direto no seu navegador.">
+<meta property="og:title" content="Acervo CMSP — baixar materiais do 4º bimestre">
+<meta property="og:description" content="Todos os PDFs do Centro de Mídias SP, filtrados por série, bimestre e disciplina. Sem instalar nada.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230B6E5F'/><text y='72' x='50' font-size='58' text-anchor='middle' fill='white' font-family='Georgia,serif' font-weight='700'>A</text></svg>">
+</head>
+<body>
+
+<a class="pular" href="#principal">Pular para o conteúdo</a>
+
+<header class="topo">
+  <div class="topo-inner">
+    <a class="marca" href="./">
+      <span class="marca-sigla" aria-hidden="true">A</span>
+      <span class="marca-txt">
+        <strong>Acervo CMSP</strong>
+        <small>Centro de Mídias SP</small>
+      </span>
+    </a>
+    <nav class="topo-links">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="https://github.com/klcombr/acervo-cmsp" target="_blank" rel="noopener">Código-fonte</a>
+      <button id="btnSair" class="btn-ghost" hidden>Sair</button>
+    </nav>
+  </div>
+</header>
+
+<main id="principal">
+
+  <!-- ---------------------------------------------------------- hero -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="selo">Material didático público · Secretaria da Educação de SP</p>
+        <h1>Todos os PDFs do bimestre, <em>na hora</em>, sem planilha.</h1>
+        <p class="sub">Escolha ano, série, bimestre e disciplina. O Acervo busca no
+          <strong>Centro de Mídias SP</strong> e entrega o PDF direto no seu computador —
+          todas as aulas, não só a primeira.</p>
+        <div class="hero-num">
+          <div><b id="statComponentes">—</b><span>componentes curriculares</span></div>
+          <div><b id="statSeries">—</b><span>séries disponíveis</span></div>
+          <div><b>0</b><span>instalação, cadastro ou servidor</span></div>
+        </div>
+      </div>
+
+      <!-- ------------------------------------------------------ login -->
+      <form id="formLogin" class="cartao cartao-login" autocomplete="on">
+        <div class="cartao-topo">
+          <h2>Entrar com o seu RA</h2>
+          <p>A busca de materiais exige um acesso de aluno.</p>
+        </div>
+
+        <label class="campo">
+          <span>RA</span>
+          <input id="usuario" name="usuario" type="text" inputmode="text"
+                 placeholder="0000000000sp" autocomplete="username" required>
+        </label>
+
+        <label class="campo">
+          <span>Senha</span>
+          <span class="com-senha">
+            <input id="senha" name="senha" type="password"
+                   placeholder="••••••••" autocomplete="current-password" required>
+            <button type="button" id="btnOlho" class="olho" aria-label="Mostrar senha">ver</button>
+          </span>
+        </label>
+
+        <button type="submit" class="btn-primario" id="btnEntrar">Buscar materiais</button>
+        <p id="loginErro" class="erro" role="alert" hidden></p>
+
+        <p class="privacidade">
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="15" height="15"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></svg>
+          <span>Login e senha são enviados <b>direto do seu navegador para o servidor do
+          CMSP</b>. Não passam por este site, não são gravados e não existem em
+          servidor nenhum — é a mesma requisição que o site oficial faz.</span>
+        </p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------- busca -->
+  <section class="wrap busca-wrap" id="busca" hidden>
+
+    <div class="busca-cabeca">
+      <h2>Monte sua busca</h2>
+      <p class="dica">Depois de escolher a disciplina, o site lista <b>todas as aulas</b> e os PDFs de cada uma.</p>
+    </div>
+
+    <form id="formBusca" class="filtros">
+      <label class="campo">
+        <span>Ano letivo</span>
+        <select id="fAno" required></select>
+      </label>
+
+      <label class="campo">
+        <span>Etapa</span>
+        <select id="fEtapa" required></select>
+      </label>
+
+      <label class="campo">
+        <span>Série</span>
+        <select id="fSerie" required></select>
+      </label>
+
+      <label class="campo">
+        <span>Bimestre</span>
+        <select id="fBimestre" required></select>
+      </label>
+
+      <label class="campo campo-grande">
+        <span>Componente curricular</span>
+        <input id="fFiltroComp" type="search" placeholder="filtrar na lista…" autocomplete="off">
+        <select id="fComponente" required size="1"></select>
+      </label>
+
+      <button type="submit" class="btn-primario btn-buscar" id="btnBuscar">Ver materiais</button>
+    </form>
+
+    <p id="resumo" class="resumo" hidden></p>
+    <section id="resultados" class="resultados" aria-live="polite"></section>
+  </section>
+
+  <!-- ------------------------------------------------------ como funciona -->
+  <section class="wrap como" id="como-funciona">
+    <h2 class="secao-titulo">Como funciona</h2>
+    <ol class="passos">
+      <li><b>Entre com o seu RA.</b> É o mesmo acesso do site oficial, feito direto do seu navegador.</li>
+      <li><b>Escolha ano, etapa, série, bimestre e disciplina.</b> Todo o acervo do bimestre fica a um clique.</li>
+      <li><b>Baixe o que quiser.</b> Arquivo por arquivo ou a lista inteira de uma vez.</li>
+    </ol>
+    <div class="caixa-script">
+      <div>
+        <h3>Quer os 4º bimestre inteiro, organizados em pastas?</h3>
+        <p>Tem um script em Python no repositório que varre todos os componentes,
+          cria uma pasta por matéria e retoma de onde parou se a internet cair.</p>
+      </div>
+      <a class="btn-secundario" href="https://github.com/klcombr/acervo-cmsp/blob/main/SCRIPT.md">Ver instruções</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Projeto independente, sem vínculo com a Secretaria da Educação do Estado de São Paulo.
+       Não afiliado ao Centro de Mídias SP — apenas uma interface para os arquivos que ele já publica.</p>
+    <p class="mono">API pública do CMSP · nenhum dado éarmazenado</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
