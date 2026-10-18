@@ -13,7 +13,9 @@ não só a primeira, e cada PDF abre direto do servidor público.
 
 ## Como funciona
 
-Site estático, **sem backend**. A API do CMSP responde com
+O site é estático e fala direto com a API do CMSP. Um backend opcional
+([`backend/`](backend/), um `app.py` só) monta o `.zip` — é o único motivo de
+existir servidor. A API do CMSP responde com
 `Access-Control-Allow-Origin: *`, então o navegador fala com ela diretamente:
 
 ```
@@ -28,6 +30,15 @@ GET  .../api/materiais-digitais/materiaisdigitais     → aulas + arquivos
 
 O token de sessão vive no `sessionStorage` da aba e morre com ela.
 
+### ZIP
+
+O botão **Baixar tudo em .zip** e **Baixar o bimestre inteiro em .zip** dependem
+do backend. Ele só empacota as URLs que o navegador já descobriu e baixa cada
+PDF do CDN público do CMSP — **não recebe RA, senha nem token**. Se o site
+estiver sem `ZIP_BACKEND` configurado, os botões avisam em vez de quebrar.
+
+Instruções de deploy: **[DEPLOY.md](DEPLOY.md)**.
+
 ### Por que sua senha é segura aqui
 
 A busca de materiais **exige** autenticação (sem o parâmetro `key` a API devolve
@@ -38,8 +49,8 @@ seu navegador  ──POST /auth (RA + senha)──▶  sedintegracoes.educacao.s
 ```
 
 Não existe servidor intermediário. A senha **não passa por este site**, não é
-gravada, não vai para log, e o projeto não tem backend onde ela poderia ficar. É a mesma
-requisição que o site oficial faz — só que sem o React no meio.
+gravada, não vai para log. Nem este site nem o servidor de ZIP a recebem. É a
+mesma requisição que o site oficial faz — só que sem o React no meio.
 
 A chave de assinatura `Ocp-Apim-Subscription-Key` usada no cliente é pública:
 está embutida no bundle JS do site oficial. Não é credencial.
@@ -68,17 +79,19 @@ python3 -m http.server 8000
 ```
 index.html      página única
 style.css       folha de estilo (light + dark, sem build)
-app.js          Cascata de selects, login, busca e render
+app.js          Cascata de selects, login, busca, render e ZIP
+backend/app.py  servidor do ZIP (opcional, Flask)
+DEPLOY.md       como subir o backend no Render
+SCRIPT.md       script de linha de comando para baixar tudo em pastas
 ```
 
 ## Limitações conhecidas
 
-- **"Abrir todos"** abre cada PDF numa aba. Navegadores bloqueiam downloads
-  múltiplos sem gesto do usuário — o Chrome pergunta uma vez e você autoriza.
-  O botão "Copiar links" é o plano B para quem não quiser abrir 20 abas.
-- **Sem ZIP.** O servidor de arquivos não envia `Access-Control-Allow-Origin`,
-  então o navegador não consegue ler os bytes para montar um .zip no cliente.
-  Para juntar tudo em pastas, use o [script em Python](SCRIPT.md).
+- **Sem ZIP sem backend.** O servidor de arquivos do CMSP não envia CORS, então o
+  navegador não consegue ler os bytes para montar o `.zip` sozinho. Com o backend
+  no Render ([DEPLOY.md](DEPLOY.md)) isso é resolvido, com pasta por disciplina.
+- **Sem "abrir todos".** O Chrome só permite um popup por clique do usuário, então
+  abrir 250 abas é bloqueado de propósito. O ZIP cobre esse caso melhor.
 - O acervo às vezes traz material de série errada (o `Script da tarde` cadastrado
   no noturno, por exemplo). É um problema do dado de origem, não da interface.
 

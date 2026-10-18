@@ -7,6 +7,10 @@ const AUTH  = "https://sedintegracoes.educacao.sp.gov.br/apirepocmsp/api/cronogr
 const CHAVE = "9a1c18f57885465ebc2ea0557afc6dbe"; // publica: esta no bundle do site oficial
 const ETAPA_EM = 3;                                 // 3 = ENSINO MÉDIO
 
+// Servidor que monta o .zip. Vazio = botao desabilitado com explicacao.
+// Preencha com a URL do seu deploy no Render (ver LEIA-ME.md, secao "Backend").
+const ZIP_BACKEND = "";   // ← cole aqui a URL do Render, ex.: "https://acervo-cmsp-zip.onrender.com"
+
 const $ = (s) => document.querySelector(s);
 const el = (t, cls, txt) => { const n = document.createElement(t); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
 
@@ -104,6 +108,7 @@ $("#fAno").addEventListener("change", async () => {
   $("#btnBuscar").disabled = false;
 });
 $("#fEtapa").addEventListener("change", () => carregarSerie());
+$("#btnZipBimestre").addEventListener("click", (e) => zipDoBimestre(e.currentTarget));
 $("#fSerie").addEventListener("change", () => carregarComponentes());
 
 async function carregarBimestre(ano) {
@@ -199,6 +204,122 @@ $("#formBusca").addEventListener("submit", async (e) => {
   }
 });
 
+/* -------------------------------------------------------------------- zip */
+
+// O navegador nao deixa o JS montar um blob de 400 MB sem estourar a aba, e
+// criar 250 abas novas e bloqueado pelo Chrome (so um popup por clique). O
+// caminho que funciona: form POST cross-origin -> o proprio browser baixa a
+// resposta direto no disco, em streaming, com barra de progresso nativa.
+function avisarSemBackend() {
+  alert("O servidor de ZIP ainda não foi configurado neste deploy.\n\n"
+      + "O código está pronto e testado (251 PDFs, 407 MB, íntegros) — falta só "
+      + "preencher a constante ZIP_BACKEND em app.js com a URL do Render.\n\n"
+      + "Enquanto isso, use “Copiar links” ou abra os arquivos individualmente.");
+}
+
+function baixarZip(arquivos, nomeZip) {
+  if (!ZIP_BACKEND) return avisarSemBackend();
+  if (!arquivos.length) return;
+
+  const f = document.createElement("form");
+  f.method = "POST";
+  f.action = `${ZIP_BACKEND}/api/zip`;
+  f.style.display = "none";
+  for (const [k, v] of Object.entries({
+    nome: nomeZip,
+    arquivos: JSON.stringify(arquivos),
+  })) {
+    const i = document.createElement("input");
+    i.type = "hidden";
+    i.name = k;
+    i.value = v;
+    f.append(i);
+  }
+  document.body.append(f);
+  f.submit();            // resposta com Content-Disposition: a aba nao navega
+  setTimeout(() => f.remove(), 1000);
+}
+
+async function zipDeDisciplina(btn, linhas) {
+  // uma pasta por disciplina dentro do zip
+  const arquivos = linhas.flatMap((l) => l.pdfs.map((a) => ({
+    nome: `${nomeDeZip(l.nomeComponente, l.aula).pasta}/${nomeDeZip(l.nomeComponente, l.aula).arq}`,
+    url: a.linkDownload,
+  })));
+  const rotulo = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Montando…";
+  try {
+    baixarZip(arquivos, `${materiaAtual} - 4bimestre`);
+  } catch (e) {
+    alert("Nao foi possivel gerar o zip: " + e.message);
+  } finally {
+    setTimeout(() => { btn.textContent = rotulo; btn.disabled = false; }, 1200);
+  }
+}
+
+// varre TODOS os componentes do filtro atual no navegador e junta num zip so.
+// O token nao vai para o backend: quem busca a lista e esta aba.
+async function zipDoBimestre(btn) {
+  if (!ZIP_BACKEND) return avisarSemBackend();   // não varre 77 componentes à toa
+  const aviso = document.createElement("p");
+  aviso.className = "aviso";
+  document.querySelector(".filtros").after(aviso);
+
+  const componentes = [...$("#fComponente").options].map((o) => ({ nome: o.textContent, codigo: o.value }));
+  const params = {
+    Ano: $("#fAno").value, TipoEnsino: $("#fEtapa").value,
+    Serie: $("#fSerie").value, Bimestre: $("#fBimestre").value,
+  };
+  
+  const arquivos = [];
+  const rotulo = btn.textContent;
+  btn.disabled = true;
+
+  try {
+    for (let i = 0; i < componentes.length; i++) {
+      const { nome, codigo } = componentes[i];
+      btn.textContent = `Varrendo ${i + 1}/${componentes.length}…`;
+      aviso.textContent = `Procurando PDFs em ${nome} (${i + 1} de ${componentes.length})…`;
+      try {
+        const d = await getDados("materiaisdigitais", { ...params, key: token, Componente: codigo });
+        for (const aula of d?.materiais || []) {
+          for (const arq of aula.arquivos || []) {
+            if (!arq.ativo || !ehPdf(arq)) continue;
+            arquivos.push({
+              nome: `${nomeDeZip(nome, aula).pasta}/${nomeDeZip(nome, aula).arq}`,
+              url: arq.linkDownload,
+            });
+          }
+        }
+      } catch { /* disciplina sem material ou erro isolado: segue para a próxima */ }
+      await new Promise((r) => setTimeout(r, 120));   // educado com a API
+    }
+    if (!arquivos.length) {
+      aviso.textContent = "Nenhum PDF encontrado nesse filtro.";
+      return;
+    }
+    aviso.textContent = `${arquivos.length} PDFs encontrados em ${componentes.length} componentes. Gerando o zip…`;
+    baixarZip(arquivos, `Acervo ${params.Serie}-serie ${params.Bimestre}bimestre ${params.Ano}`);
+    aviso.textContent = `${arquivos.length} PDFs enviados. O download começa em instantes.`;
+  } finally {
+    btn.textContent = rotulo;
+    btn.disabled = false;
+    setTimeout(() => aviso.remove(), 12000);
+  }
+}
+
+const INVALIDO_PASTA = /[<>:"/\\|?*]/g;
+
+// o backend so aceita nomes de arquivo; o caminho vem montado aqui e ele
+// rejeita qualquer tentativa de subir de nível (ver app.py, nome_seguro)
+const nomeDeZip = (materia, aula) => {
+  const pasta = materia.replace(INVALIDO_PASTA, "").trim().slice(0, 60);
+  const arq = `Aula ${aula.ordenacao ?? "?"} - ${aula.titulo || "sem titulo"}.pdf`
+    .replace(INVALIDO_PASTA, "").trim().slice(0, 150);
+  return { pasta, arq };
+};
+
 /* --------------------------------------------------------------- desenho */
 
 function vazio(titulo, texto) {
@@ -222,6 +343,7 @@ function render(componente, aulas) {
   // PDFs primeiro; aulas só com áudio ficam de fora da lista, mas são contabilizadas
   const linhas = aulas.map((a) => ({
     aula: a,
+    nomeComponente: componente,
     pdfs: (a.arquivos || []).filter((x) => x.ativo && ehPdf(x)),
     outros: (a.arquivos || []).filter((x) => x.ativo && !ehPdf(x)).length,
   })).filter((l) => l.pdfs.length);
@@ -286,13 +408,10 @@ function barra(linhas, total) {
   conta.append(el("b", null, String(total)), document.createTextNode(" arquivos prontos para baixar"));
   b.append(conta);
 
-  const abrir = el("button", "btn-secundario", "Abrir todos");
-  abrir.type = "button";
-  abrir.title = "Abre cada PDF em uma aba. Se o navegador bloquear, permita os downloads múltiplos.";
-  abrir.addEventListener("click", () => {
-    const urls = linhas.flatMap((l) => l.pdfs.map((a) => a.linkDownload));
-   _urls(urls);
-  });
+  const zip = el("button", "btn-primario-inline", "Baixar tudo em .zip");
+  zip.type = "button";
+  zip.title = "Junta os PDFs desta disciplina em um único zip, com pasta por disciplina.";
+  zip.addEventListener("click", () => zipDeDisciplina(zip, linhas));
 
   const copiar = el("button", "btn-ghost", "Copiar links");
   copiar.type = "button";
@@ -303,19 +422,9 @@ function barra(linhas, total) {
     setTimeout(() => (copiar.textContent = "Copiar links"), 1800);
   });
 
-  b.append(abrir, copiar);
+  b.append(zip, copiar);
   return b;
 }
-
-// o navegador só libera vários downloads a partir de um gesto do usuário;
-// abrimos com uma pausa curta entre eles e deixamos o contador na tela.
-let _urls = (urls) => {
-  urls.reduce((t, url, i) => setTimeout(() => {
-    const a = document.createElement("a");
-    a.href = url; a.target = "_blank"; a.rel = "noopener";
-    document.body.append(a); a.click(); a.remove();
-  }, i * 450), undefined);
-};
 
 /* ------------------------------------------------------------------ boot */
 

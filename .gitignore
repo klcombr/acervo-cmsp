@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+progresso.json
+.token.json
+relatorio.json
+Materiais_4_Bimestre/
