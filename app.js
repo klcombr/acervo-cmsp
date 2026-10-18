@@ -108,7 +108,6 @@ $("#fAno").addEventListener("change", async () => {
   $("#btnBuscar").disabled = false;
 });
 $("#fEtapa").addEventListener("change", () => carregarSerie());
-$("#btnZipBimestre").addEventListener("click", (e) => zipDoBimestre(e.currentTarget));
 $("#fSerie").addEventListener("change", () => carregarComponentes());
 
 async function carregarBimestre(ano) {
@@ -212,7 +211,7 @@ $("#formBusca").addEventListener("submit", async (e) => {
 // resposta direto no disco, em streaming, com barra de progresso nativa.
 function avisarSemBackend() {
   alert("O servidor de ZIP ainda não foi configurado neste deploy.\n\n"
-      + "O código está pronto e testado (251 PDFs, 407 MB, íntegros) — falta só "
+      + "O código está pronto e testado — falta só "
       + "preencher a constante ZIP_BACKEND em app.js com a URL do Render.\n\n"
       + "Enquanto isso, use “Copiar links” ou abra os arquivos individualmente.");
 }
@@ -260,69 +259,6 @@ async function zipDeDisciplina(btn, linhas) {
 
 // varre TODOS os componentes do filtro atual no navegador e junta num zip so.
 // O token nao vai para o backend: quem busca a lista e esta aba.
-async function zipDoBimestre(btn) {
-  if (!ZIP_BACKEND) return avisarSemBackend();   // não varre 77 componentes à toa
-  const aviso = document.createElement("p");
-  aviso.className = "aviso";
-  document.querySelector(".filtros").after(aviso);
-
-  const componentes = [...$("#fComponente").options].map((o) => ({ nome: o.textContent, codigo: o.value }));
-  const params = {
-    Ano: $("#fAno").value, TipoEnsino: $("#fEtapa").value,
-    Serie: $("#fSerie").value, Bimestre: $("#fBimestre").value,
-  };
-  
-  // agrupa por disciplina: um zip por matéria em vez de um de 400 MB
-  const porMateria = new Map();
-  const rotulo = btn.textContent;
-  btn.disabled = true;
-
-  try {
-    for (let i = 0; i < componentes.length; i++) {
-      const { nome, codigo } = componentes[i];
-      btn.textContent = `Varrendo ${i + 1}/${componentes.length}…`;
-      aviso.textContent = `Procurando PDFs em ${nome} (${i + 1} de ${componentes.length})…`;
-      try {
-        const d = await getDados("materiaisdigitais", { ...params, key: token, Componente: codigo });
-        const arquivos = [];
-        for (const aula of d?.materiais || []) {
-          for (const arq of aula.arquivos || []) {
-            if (!arq.ativo || !ehPdf(arq)) continue;
-            arquivos.push({
-              nome: `${nomeDeZip(nome, aula).pasta}/${nomeDeZip(nome, aula).arq}`,
-              url: arq.linkDownload,
-            });
-          }
-        }
-        if (arquivos.length) porMateria.set(nome, arquivos);
-      } catch { /* disciplina sem material ou erro isolado: segue para a próxima */ }
-      await new Promise((r) => setTimeout(r, 120));   // educado com a API
-    }
-
-    if (!porMateria.size) {
-      aviso.textContent = "Nenhum PDF encontrado nesse filtro.";
-      return;
-    }
-
-    // Um zip por disciplina, e nao um unico de 400 MB. Medido: o plano Free do
-    // Render entrega ~325 KB/s, entao o arquivo gigante levava ~20 min e ainda
-    // era cortado no meio pelo timeout, chegando sem o diretorio central.
-    // Vinte downloads de ~20 MB sao rapidos e nao correm esse risco.
-    aviso.textContent = `${porMateria.size} disciplinas com material. Baixando um zip de cada…`;
-    let n = 0;
-    for (const [nome, arquivos] of porMateria) {
-      btn.textContent = `Baixando ${++n}/${porMateria.size}…`;
-      aviso.textContent = `zip ${n} de ${porMateria.size}: ${nome} (${arquivos.length} PDFs)`;
-      baixarZip(arquivos, `${nome} - ${params.Serie}serie ${params.Bimestre}bimestre`);
-      await new Promise((r) => setTimeout(r, 2500));   // deixa a fila do browser respirar
-    }
-    const total = [...porMateria.values()].reduce((s, a) => s + a.length, 0);
-    aviso.textContent = `${porMateria.size} zips enviados (${total} PDFs). Confira a pasta de downloads.`;
-  } finally {
-    btn.textContent = rotulo;
-    btn.disabled = false;
-  }
-}
 
 const INVALIDO_PASTA = /[<>:"/\\|?*]/g;
 

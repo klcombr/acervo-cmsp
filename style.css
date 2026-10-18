@@ -208,7 +208,9 @@ select{appearance:none;cursor:pointer;padding-right:34px;
 .barra-larga{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:18px;
   padding:16px 20px;background:var(--verde-claro);border-radius:var(--raio);
   border:1px solid color-mix(in srgb,var(--verde) 20%,transparent)}
-.barra-nota{font-size:.84rem;color:var(--verde-esc);min-width:0}
+.barra-nota{font-size:.84rem;color:var(--verde-esc);min-width:0;flex:1}
+.barra-titulo{font-weight:600;font-size:.92rem;color:var(--verde-esc)}
+.barra-larga .btn-secundario{flex:0 0 auto}
 .aviso{margin:14px 0 0;padding:12px 15px;font-size:.87rem;background:var(--ambar-claro);
   color:var(--ambar);border-radius:var(--raio-sm);
   border:1px solid color-mix(in srgb,var(--ambar) 28%,transparent)}
